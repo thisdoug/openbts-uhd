@@ -75,7 +75,7 @@ Mutex::Mutex()
 {
 	pthread_mutexattr_init(&mAttribs);
 	int s = pthread_mutexattr_settype(&mAttribs,PTHREAD_MUTEX_RECURSIVE);
-	assert(s!=0);
+	assert(s==0);
 	pthread_mutex_init(&mMutex,&mAttribs);
 }
 
