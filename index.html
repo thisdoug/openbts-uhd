@@ -2,79 +2,76 @@
 	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
-<head>
-	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 
-	<title>ttsou/openbts-uhd @ GitHub</title>
-	
-	<style type="text/css">
-		body {
-  		margin-top: 1.0em;
-  		background-color: #ffffff;
-		  font-family: "Helvetica,Arial,FreeSans";
-  		color: #000000;
-    }
-    #container {
-      margin: 0 auto;
-      width: 700px;
-    }
-		h1 { font-size: 3.8em; color: #000000; margin-bottom: 3px; }
-		h1 .small { font-size: 0.4em; }
-		h1 a { text-decoration: none }
-		h2 { font-size: 1.5em; color: #000000; }
-    h3 { text-align: center; color: #000000; }
-    a { color: #000000; }
-    .description { font-size: 1.2em; margin-bottom: 30px; margin-top: 30px; font-style: italic;}
-    .download { float: right; }
-		pre { background: #000; color: #fff; padding: 15px;}
-    hr { border: 0; width: 80%; border-bottom: 1px solid #aaa}
-    .footer { text-align:center; padding-top:30px; font-style: italic; }
-	</style>
-	
-</head>
+  <head>
+    <title>OpenBTS USRP2 support</title>
+  </head>
 
 <body>
-  <a href="http://github.com/ttsou/openbts-uhd"><img style="position: absolute; top: 0; right: 0; border: 0;" src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub" /></a>
+<p>
+<h3>OpenBTS USRP2 support</h3>
+<pre>
+11/17/2010 07:09 AM
 
-  <div id="container">
+I'm announcing the availability of USRP2 support with OpenBTS. The
+patch set consists of a new device implementation that uses the UHD
+driver from Ettus Research and allows the use of an external 10MHz
+reference clock. Additional implementation details can be found in the
+comments and commit log.
 
-    <div class="download">
-      <a href="http://github.com/ttsou/openbts-uhd/zipball/master">
-        <img border="0" width="90" src="http://github.com/images/modules/download/zip.png"></a>
-      <a href="http://github.com/ttsou/openbts-uhd/tarball/master">
-        <img border="0" width="90" src="http://github.com/images/modules/download/tar.png"></a>
-    </div>
+Download:
 
-    <h1><a href="http://github.com/ttsou/openbts-uhd">openbts-uhd</a>
-      <span class="small">by <a href="http://github.com/ttsou">ttsou</a></span></h1>
+git clone git://github.com/ttsou/openbts-uhd.git
 
-    <div class="description">
-       UHD device support for OpenBTS
-    </div>
+git clone http://github.com/ttsou/openbts-uhd.git
 
-    <h2>Authors</h2>
-<p>David A. Burgess (dburgess@kestrelsp.com)<br/>Sylvain Munaut (tnt@246tNt.com)<br/>Thomas Tsou (ttsou@vt.edu)<br/><br/>      </p>
-<h2>Contact</h2>
-<p>Thomas Tsou (ttsou@vt.edu)<br/>      </p>
+http://github.com/ttsou/openbts-uhd/tarball/master
 
+GitHub:
 
-    <h2>Download</h2>
-    <p>
-      You can download this project in either
-      <a href="http://github.com/ttsou/openbts-uhd/zipball/master">zip</a> or
-      <a href="http://github.com/ttsou/openbts-uhd/tarball/master">tar</a> formats.
-    </p>
-    <p>You can also clone the project with <a href="http://git-scm.com">Git</a>
-      by running:
-      <pre>$ git clone git://github.com/ttsou/openbts-uhd</pre>
-    </p>
+http://github.com/ttsou/openbts-uhd
 
-    <div class="footer">
-      get the source code on GitHub : <a href="http://github.com/ttsou/openbts-uhd">ttsou/openbts-uhd</a>
-    </div>
+Build:
 
-  </div>
+USRP2 support requires the UHD driver and firmware. GNU Radio is not required.
 
-  
+http://ettus-apps.sourcerepo.com/redmine/ettus/projects/uhd/wiki
+
+./bootstrap
+./configure --with-uhd
+make
+
+Without the '--with-uhd' option, the standard USRP1 implementation
+will be built.
+
+Release Notes:
+
+*The USRP2 is clocked at 100MHz and does not output fractional sample
+rates, so only the non-52M Transceiver is available.
+
+*Tested with a single WBX board, which is capable of operation on all
+4 GSM bands. Other boards should work, but are untested.
+
+*Operation in the upper bands (1800, 1900MHz) requires an external
+reference for reliable operation. This is true to a lesser extent in
+the lower bands as well.
+
+External Reference Clock:
+
+The front panel 10MHz reference input of the USRP2 can be used to
+improve stability of the internal oscillator (~20 ppm). To test
+frequency offset, a modified version of Kalibrate -
+http://thre.at/kalibrate - is available. Information and examples for
+the UHD development branch can be found here.
+
+http://ttsou.github.com/kalibrate-uhd
+
+That's about it. Hopefully, a number of people will find this useful.
+Let me know if you have any questions. Comments and feedback are
+always welcome.
+
+ Thomas
+</pre>
+</p>
 </body>
 </html>
