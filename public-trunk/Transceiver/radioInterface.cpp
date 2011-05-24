@@ -90,39 +90,29 @@ void RadioInterface::setPowerAttenuation(double atten)
     powerScaling = 1.0 / sqrt(pow(10, (atten / 10.0)));
 }
 
-short *RadioInterface::USRPifyVector(signalVector &wVector) 
+float *RadioInterface::USRPifyVector(signalVector &wVector) 
 {
+  float *retVector = new float[2 * wVector.size()];
 
-  short *retVector = new short[2*wVector.size()];
-
-  signalVector::iterator itr = wVector.begin();
-  short *shortItr = retVector;
-  while (itr < wVector.end()) {
-    *shortItr++ = itr->real();
-    *shortItr++ = itr->imag();
-    itr++;
-  }
+  memcpy(retVector, (float *) wVector.begin(), wVector.size() * 2 * sizeof(float));
 
   return retVector;
-
 }
 
-signalVector *RadioInterface::unUSRPifyVector(short *shortVector, int numSamples)
+signalVector *RadioInterface::unUSRPifyVector(float *floatVector, int numSamples)
 
 {
-  
   signalVector *newVector = new signalVector(numSamples);
 
   signalVector::iterator itr = newVector->begin();
-  short *shortItr = shortVector;
+  float *floatItr = floatVector;
 
   while (itr < newVector->end()) {
-    *itr++ = Complex<float>(*shortItr, *(shortItr+1));
-    shortItr += 2;
+    *itr++ = Complex<float>(*floatItr * 32000, *(floatItr+1) * 32000);
+    floatItr += 2;
   }
 
   return newVector;
-
 }
 
 
@@ -157,7 +147,7 @@ void RadioInterface::pushBuffer(void) {
   // Set transmit gain and power here.
   scaleVector(*resampledVector, powerScaling * usrp->fullScaleInputValue());
 
-  short *resampledVectorShort = USRPifyVector(*resampledVector);
+  float *resampledVectorShort = USRPifyVector(*resampledVector);
 
   // start the USRP when we actually have data to send to the USRP.
   if (!started) {
@@ -218,13 +208,13 @@ void RadioInterface::pullBuffer(void)
   bool localUnderrun;
 
    // receive receiveVector
-  short* shortVector = new short[OUTCHUNK*2];  
-  int samplesRead = usrp->readSamples(shortVector,OUTCHUNK,&overrun,readTimestamp,&localUnderrun);
+  float *floatVector = new float[OUTCHUNK*2];  
+  int samplesRead = usrp->readSamples(floatVector,OUTCHUNK,&overrun,readTimestamp,&localUnderrun);
   underrun |= localUnderrun;
   readTimestamp += (TIMESTAMP) samplesRead;
   while (samplesRead < OUTCHUNK) {
     int oldSamplesRead = samplesRead;
-    samplesRead += usrp->readSamples(shortVector+2*samplesRead,
+    samplesRead += usrp->readSamples(floatVector+2*samplesRead,
 				     OUTCHUNK-samplesRead,
 				     &overrun,
 				     readTimestamp,
@@ -233,8 +223,8 @@ void RadioInterface::pullBuffer(void)
     readTimestamp += (TIMESTAMP) (samplesRead - oldSamplesRead);
   }
 
-  signalVector *receiveVector = unUSRPifyVector(shortVector,samplesRead);
-  delete []shortVector;
+  signalVector *receiveVector = unUSRPifyVector(floatVector,samplesRead);
+  delete []floatVector;
     
   if (!rcvLPF) {
     int P = INRATE; int Q = OUTRATE;

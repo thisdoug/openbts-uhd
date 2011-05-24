@@ -61,20 +61,20 @@ int main(int argc, char *argv[]) {
   usrp->updateAlignment(21000);
 
   int numpkts = 2;
-  short data2[156*2*numpkts];
+  float data2[156*2*numpkts];
   for (int i = 0; i < 156*numpkts; i++) {
     data2[i<<1] = 10000;//4096*cos(2*3.14159*(i % 126)/126);
     data2[(i<<1) + 1] = 10000;//4096*sin(2*3.14159*(i % 126)/126);
   }
 
   for (int i = 0; i < 10; i++) 
-    usrp->writeSamples((short*) data2,156*numpkts,&underrun,102000+i*1000);
+    usrp->writeSamples((float*) data2,156*numpkts,&underrun,102000+i*1000);
 
   timestamp = 19000;
   double sum = 0.0;
   unsigned long num = 0;
   while (1) {
-    short readBuf[512*2];
+    float readBuf[512*2];
     int rd = usrp->readSamples(readBuf,512,&underrun,timestamp);
     if (rd) {
       LOG(INFO) << "rcvd. data@:" << timestamp;

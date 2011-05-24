@@ -74,7 +74,6 @@ Transceiver::Transceiver(int wBasePort,
     signalVector* modBurst = modulateBurst(gDummyBurst,*gsmPulse,
 					   8 + (i % 4 == 0),
 					   mSamplesPerSymbol);
-    scaleVector(*modBurst,txFullScale);
     fillerModulus[i]=26;
     for (int j = 0; j < 102; j++) {
       fillerTable[j][i] = new signalVector(*modBurst);
@@ -111,7 +110,6 @@ void Transceiver::addRadioVector(BitVector &burst,
   signalVector* modBurst = modulateBurst(burst,*gsmPulse,
 					 8 + (wTime.TN() % 4 == 0),
 					 mSamplesPerSymbol);
-  scaleVector(*modBurst,txFullScale * pow(10,-RSSI/10));
   radioVector *newVec = new radioVector(*modBurst,wTime);
   mTransmitPriorityQueue.write(newVec);
 
@@ -401,8 +399,7 @@ SoftVector *Transceiver::pullRadioVector(GSM::Time &wTime,
 			    *DFEFeedback[timeslot]);
     }
     wTime = rxBurst->time();
-    // FIXME:  what is full scale for the USRP?  we get more that 12 bits of resolution...
-    RSSI = (int) floor(20.0*log10(rxFullScale/amplitude.abs()));
+    RSSI = (int) floor(20.0*log10(1.0/amplitude.abs()));
     LOG(DEBUG) << "RSSI: " << RSSI;
     timingOffset = (int) round(TOA*256.0/mSamplesPerSymbol);
   }

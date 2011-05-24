@@ -69,7 +69,6 @@ Transceiver::Transceiver(int wBasePort,
     signalVector* modBurst = modulateBurst(gDummyBurst,*gsmPulse,
 					   8 + (i % 4 == 0),
 					   mSamplesPerSymbol);
-//if (i!=0) scaleVector(*modBurst,0.0001);
     fillerModulus[i]=26;
     for (int j = 0; j < 102; j++) {
       fillerTable[j][i] = new signalVector(*modBurst);

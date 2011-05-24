@@ -114,7 +114,7 @@ public:
 	};
 
 private:
-	uint32_t *data;
+	uint64_t *data;
 	size_t buf_len;
 
 	double clk_rt;
@@ -144,10 +144,10 @@ public:
 	void restart(uhd::time_spec_t ts);
 	void setPriority();
 
-	int readSamples(short *buf, int len, bool *overrun, 
+	int readSamples(float *buf, int len, bool *overrun, 
 			TIMESTAMP timestamp, bool *underrun, unsigned *RSSI);
 
-	int writeSamples(short *buf, int len, bool *underrun, 
+	int writeSamples(float *buf, int len, bool *underrun, 
 			 TIMESTAMP timestamp, bool isControl);
 
 	bool updateAlignment(TIMESTAMP timestamp);
@@ -158,8 +158,8 @@ public:
 	inline TIMESTAMP initialWriteTimestamp() { return 0; }
 	inline TIMESTAMP initialReadTimestamp() { return 0; }
 
-	inline double fullScaleInputValue() { return 13500.0; }
-	inline double fullScaleOutputValue() { return 9450.0; }
+	inline double fullScaleInputValue() { return 1.0; }
+	inline double fullScaleOutputValue() { return 1.0; }
 
 	double setRxGain(double db);
 	double getRxGain(void) { return rx_gain; }
@@ -348,7 +348,7 @@ bool uhd_device::open()
 		return false;
 
 	// Create receive buffer
-	size_t buf_len = smpl_buf_sz / sizeof(uint32_t);
+	size_t buf_len = smpl_buf_sz / sizeof(uint64_t);
 	rx_smpl_buf = new smpl_buf(buf_len, actual_smpl_rt);
 
 	// Set receive chain sample offset 
@@ -370,7 +370,7 @@ bool uhd_device::flush_recv(size_t num_pkts)
 {
 	uhd::rx_metadata_t metadata;
 	size_t num_smpls;
-	uint32_t buff[rx_spp];
+	uint64_t buff[rx_spp];
 	float timeout;
 
 	// Use .01 sec instead of the default .1 sec
@@ -381,7 +381,7 @@ bool uhd_device::flush_recv(size_t num_pkts)
 					buff,
 					rx_spp,
 					metadata,
-					uhd::io_type_t::COMPLEX_INT16,
+					uhd::io_type_t::COMPLEX_FLOAT32,
 					uhd::device::RECV_MODE_ONE_PACKET,
 					timeout);
 
@@ -473,13 +473,13 @@ static int check_rx_md_err(uhd::rx_metadata_t &md, uhd::time_spec_t &prev_ts)
 	return 0;
 }
 
-int uhd_device::readSamples(short *buf, int len, bool *overrun,
+int uhd_device::readSamples(float *buf, int len, bool *overrun,
 			TIMESTAMP timestamp, bool *underrun, unsigned *RSSI)
 {
 	ssize_t rc;
 	uhd::time_spec_t ts;
 	uhd::rx_metadata_t metadata;
-	uint32_t pkt_buf[rx_spp];
+	uint64_t pkt_buf[rx_spp];
 
 	if (skip_rx)
 		return 0;
@@ -504,7 +504,7 @@ int uhd_device::readSamples(short *buf, int len, bool *overrun,
 					(void*)pkt_buf,
 					rx_spp,
 					metadata,
-					uhd::io_type_t::COMPLEX_INT16,
+					uhd::io_type_t::COMPLEX_FLOAT32,
 					uhd::device::RECV_MODE_ONE_PACKET);
 
 		rx_pkt_cnt++;
@@ -548,7 +548,7 @@ int uhd_device::readSamples(short *buf, int len, bool *overrun,
 	return len;
 }
 
-int uhd_device::writeSamples(short *buf, int len, bool *underrun,
+int uhd_device::writeSamples(float *buf, int len, bool *underrun,
 			unsigned long long timestamp,bool isControl)
 {
 	uhd::tx_metadata_t metadata;
@@ -585,7 +585,7 @@ int uhd_device::writeSamples(short *buf, int len, bool *underrun,
 	size_t num_smpls = usrp_dev->get_device()->send(buf,
 					len,
 					metadata,
-					uhd::io_type_t::COMPLEX_INT16,
+					uhd::io_type_t::COMPLEX_FLOAT32,
 					uhd::device::SEND_MODE_FULL_BUFF);
 
 	if (num_smpls != (unsigned)len)
@@ -703,7 +703,7 @@ smpl_buf::smpl_buf(size_t len, double rate)
 	: buf_len(len), clk_rt(rate),
 	  time_start(0), time_end(0), data_start(0), data_end(0)
 {
-	data = new uint32_t[len];
+	data = new uint64_t[len];
 }
 
 smpl_buf::~smpl_buf()
@@ -746,11 +746,11 @@ ssize_t smpl_buf::read(void *buf, size_t len, TIMESTAMP timestamp)
 
 	// Read it
 	if (read_start + num_smpls < buf_len) {
-		size_t numBytes = len * 2 * sizeof(short);
+		size_t numBytes = len * sizeof(uint64_t);
 		memcpy(buf, data + read_start, numBytes);
 	} else {
-		size_t first_cp = (buf_len - read_start) * 2 * sizeof(short);
-		size_t second_cp = len * 2 * sizeof(short) - first_cp;
+		size_t first_cp = (buf_len - read_start) * sizeof(uint64_t);
+		size_t second_cp = len * sizeof(uint64_t) - first_cp;
 
 		memcpy(buf, data + read_start, first_cp);
 		memcpy((char*) buf + first_cp, data, second_cp);
@@ -783,11 +783,11 @@ ssize_t smpl_buf::write(void *buf, size_t len, TIMESTAMP timestamp)
 
 	// Write it
 	if ((write_start + len) < buf_len) {
-		size_t numBytes = len * 2 * sizeof(short);
+		size_t numBytes = len * sizeof(uint64_t);
 		memcpy(data + write_start, buf, numBytes);
 	} else {
-		size_t first_cp = (buf_len - write_start) * 2 * sizeof(short);
-		size_t second_cp = len * 2 * sizeof(short) - first_cp;
+		size_t first_cp = (buf_len - write_start) * sizeof(uint64_t);
+		size_t second_cp = len * sizeof(uint64_t) - first_cp;
 
 		memcpy(data + write_start, buf, first_cp);
 		memcpy(data, (char*) buf + first_cp, second_cp);

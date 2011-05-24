@@ -145,10 +145,10 @@ private:
   double powerScaling;
 
   /** format samples to USRP */ 
-  short *USRPifyVector(signalVector &wVector);
+  float *USRPifyVector(signalVector &wVector);
 
   /** format samples from USRP */
-  signalVector *unUSRPifyVector(short *shortVector, int numSamples);
+  signalVector *unUSRPifyVector(float *floatVector, int numSamples);
 
   /** push GSM bursts into the transmit buffer */
   void pushBuffer(void);

@@ -138,10 +138,10 @@ private:
 
   RadioDevice *mRadio;			      ///< the USRP object
  
-  short sendBuffer[2*2*INCHUNK];
+  float sendBuffer[2*2*INCHUNK];
   unsigned sendCursor;
 
-  short rcvBuffer[2*2*OUTCHUNK];
+  float rcvBuffer[2*2*OUTCHUNK];
   unsigned rcvCursor;
  
   bool underrun;			      ///< indicates writes to USRP are too slow
@@ -161,10 +161,10 @@ private:
   double powerScaling;
 
   /** format samples to USRP */ 
-  short *radioifyVector(signalVector &wVector, short *shortVector, double scale, bool zeroOut);
+  float *radioifyVector(signalVector &wVector, float *shortVector, double scale, bool zeroOut);
 
   /** format samples from USRP */
-  void unRadioifyVector(short *shortVector, signalVector &wVector);
+  void unRadioifyVector(float *shortVector, signalVector &wVector);
 
   /** push GSM bursts into the transmit buffer */
   void pushBuffer(void);
