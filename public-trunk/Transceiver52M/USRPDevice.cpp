@@ -51,7 +51,6 @@ string write_it(unsigned v) {
 
 
 const float USRPDevice::LO_OFFSET = 4.0e6;
-const double USRPDevice::masterClockRate = (double) 52.0e6;
 
 bool USRPDevice::compute_regs(double freq,
 			      unsigned *R,
@@ -147,6 +146,15 @@ bool USRPDevice::rx_setFreq(double freq, double *actual_freq)
   return false;
 }
 
+enum dboardConfigType {
+  TXA_RXB,
+  TXB_RXA,
+  TXA_RXA,
+  TXB_RXB
+};
+
+const dboardConfigType dboardConfig = TXA_RXB;
+const double USRPDevice::masterClockRate = 52.0e6;
 
 USRPDevice::USRPDevice (double _desiredSampleRate) 
 {
@@ -225,6 +233,31 @@ bool USRPDevice::make(bool wSkipRx)
   m_uTx->stop();
   
 #endif
+
+  switch (dboardConfig) {
+  case TXA_RXB:
+    txSubdevSpec = usrp_subdev_spec(0,0);
+    rxSubdevSpec = usrp_subdev_spec(1,0);
+    break;
+  case TXB_RXA:
+    txSubdevSpec = usrp_subdev_spec(1,0);
+    rxSubdevSpec = usrp_subdev_spec(0,0);
+    break;
+  case TXA_RXA:
+    txSubdevSpec = usrp_subdev_spec(0,0);
+    rxSubdevSpec = usrp_subdev_spec(0,0);
+    break;
+  case TXB_RXB:
+    txSubdevSpec = usrp_subdev_spec(1,0);
+    rxSubdevSpec = usrp_subdev_spec(1,0);
+    break;
+  default:
+    txSubdevSpec = usrp_subdev_spec(0,0);
+    rxSubdevSpec = usrp_subdev_spec(1,0);
+  }
+
+  m_dbTx = m_uTx->selected_subdev(txSubdevSpec);
+  m_dbRx = m_uRx->selected_subdev(rxSubdevSpec);
 
   samplesRead = 0;
   samplesWritten = 0;

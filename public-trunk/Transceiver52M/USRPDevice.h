@@ -64,7 +64,12 @@ private:
   double desiredSampleRate; 	///< the desired sampling rate
   usrp_standard_rx_sptr m_uRx;	///< the USRP receiver
   usrp_standard_tx_sptr m_uTx;	///< the USRP transmitter
-	
+
+  db_base_sptr m_dbRx;          ///< rx daughterboard
+  db_base_sptr m_dbTx;          ///< tx daughterboard
+  usrp_subdev_spec rxSubdevSpec;
+  usrp_subdev_spec txSubdevSpec;
+
   double actualSampleRate;	///< the actual USRP sampling rate
   unsigned int decimRate;	///< the USRP decimation rate
 
