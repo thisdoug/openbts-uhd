@@ -41,88 +41,6 @@
 
 using namespace std;
 
-string write_it(unsigned v) {
-  string s = "   ";
-  s[0] = (v>>16) & 0x0ff;
-  s[1] = (v>>8) & 0x0ff;
-  s[2] = (v) & 0x0ff;
-  return s;
-}
-
-
-const float USRPDevice::LO_OFFSET = 4.0e6;
-
-bool USRPDevice::compute_regs(double freq,
-			      unsigned *R,
-			      unsigned *control,
-			      unsigned *N,
-			      double *actual_freq) 
-{
-  if (freq < 1.2e9) {
-	DIV2 = 1;
-	freq_mult = 2;
-  }
-  else {
-	DIV2 = 0;
-	freq_mult = 1;
-  }
-
-  float phdet_freq = masterClockRate/R_DIV;
-  int desired_n = (int) round(freq*freq_mult/phdet_freq);
-  *actual_freq = desired_n * phdet_freq/freq_mult;
-  float B = floor(desired_n/16);
-  float A = desired_n - 16*B;
-  unsigned B_DIV = int(B);
-  unsigned A_DIV = int(A);
-  if (B < A) return false;
-  *R = (R_RSV<<22) | 
-    (BSC << 20) | 
-    (TEST << 19) | 
-    (LDP << 18) | 
-    (ABP << 16) | 
-    (R_DIV << 2);
-  *control = (P<<22) | 
-    (PD<<20) | 
-    (CP2 << 17) | 
-    (CP1 << 14) | 
-    (PL << 12) | 
-    (MTLD << 11) | 
-    (CPG << 10) | 
-    (CP3S << 9) | 
-    (PDP << 8) | 
-    (MUXOUT << 5) | 
-    (CR << 4) | 
-    (PC << 2);
-  *N = (DIVSEL<<23) | 
-    (DIV2<<22) | 
-    (CPGAIN<<21) | 
-    (B_DIV<<8) | 
-    (N_RSV<<7) | 
-    (A_DIV<<2);
-  return true;
-}
-
-bool USRPDevice::rx_setFreq(double freq, double *actual_freq) 
-{
-  unsigned R, control, N;
-  if (!compute_regs(freq, &R, &control, &N, actual_freq)) return false;
-  if (R==0) return false;
- 
-  writeLock.lock(); 
-  m_uRx->_write_spi(0,SPI_ENABLE_RX_B,SPI_FMT_MSB | SPI_FMT_HDR_0,
-		    write_it((R & ~0x3) | 1));
-  m_uRx->_write_spi(0,SPI_ENABLE_RX_B,SPI_FMT_MSB | SPI_FMT_HDR_0,
-		    write_it((control & ~0x3) | 0));
-  usleep(10000);
-  m_uRx->_write_spi(0,SPI_ENABLE_RX_B,SPI_FMT_MSB | SPI_FMT_HDR_0,
-		    write_it((N & ~0x3) | 2));
-  writeLock.unlock();
-  
-  if (m_uRx->read_io(1) & PLL_LOCK_DETECT)  return true;
-  if (m_uRx->read_io(1) & PLL_LOCK_DETECT)  return true;
-  return false;
-}
-
 enum dboardConfigType {
   TXA_RXB,
   TXB_RXA,
@@ -259,7 +177,7 @@ bool USRPDevice::start()
   // power up and configure daughterboards
   m_dbTx->set_enable(true);
   m_uTx->set_mux(m_uTx->determine_tx_mux_value(txSubdevSpec));
-  m_uRx->set_mux(0x00000032);
+  m_uRx->set_mux(m_uRx->determine_rx_mux_value(rxSubdevSpec));
 
   if (!m_dbRx->select_rx_antenna(1))
     m_dbRx->select_rx_antenna(0);
@@ -468,13 +386,6 @@ int USRPDevice::readSamples(short *buf, int len, bool *overrun,
   dataStart = (bufStart + len) % (currDataSize/2);
   timeStart = timestamp + len;
 
-  // do IQ swap here
-  for (int i = 0; i < len; i++) {
-    short tmp = usrp_to_host_short(buf[2*i]);
-    buf[2*i] = usrp_to_host_short(buf[2*i+1]);
-    buf[2*i+1] = tmp;
-  } 
- 
   return len;
   
 #else
@@ -606,19 +517,25 @@ bool USRPDevice::setTxFreq(double wFreq)
   }
 }
 
-bool USRPDevice::setRxFreq(double wFreq) {
-  // Tune to wFreq-2*LO_OFFSET, to
-  //   1) prevent LO bleedthrough (as with the setTxFreq method above)
-  //   2) The extra LO_OFFSET pushes potential transmitter energy (GSM BS->MS transmissions 
-  //        are 45Mhz above MS->BS transmissions) into a notch of the baseband lowpass filter 
-  //        in front of the ADC.  This possibly gives us an extra 10-20dB Tx/Rx isolation.
-  double actFreq;
-  // FIXME -- This should bo configurable.
-  if (!rx_setFreq(wFreq-2*LO_OFFSET,&actFreq)) return false;
-  bool retVal = m_uRx->set_rx_freq(0,(wFreq-actFreq));
-  LOG(DEBUG) << "set RX: " << wFreq-actFreq << " actual RX: " << m_uRx->rx_freq(0);
-  return retVal;
-};
+bool USRPDevice::setRxFreq(double wFreq)
+{
+  usrp_tune_result result;
+
+  if (m_uRx->tune(0, m_dbRx, wFreq, &result)) {
+    LOG(NOTICE) << "set RX: " << wFreq << std::endl
+              << "    baseband freq: " << result.baseband_freq << std::endl
+              << "    DDC freq:      " << result.dxc_freq << std::endl
+              << "    residual freq: " << result.residual_freq;
+    return true;
+  }
+  else {
+    LOG(ERROR) << "set RX: " << wFreq << "failed" << std::endl
+               << "    baseband freq: " << result.baseband_freq << std::endl
+               << "    DDC freq:      " << result.dxc_freq << std::endl
+               << "    residual freq: " << result.residual_freq;
+    return false;
+  }
+}
 
 #else
 bool USRPDevice::setTxFreq(double wFreq) { return true;};
