@@ -102,29 +102,6 @@ bool USRPDevice::compute_regs(double freq,
   return true;
 }
 
-
-bool USRPDevice::tx_setFreq(double freq, double *actual_freq) 
-{
-  unsigned R, control, N;
-  if (!compute_regs(freq, &R, &control, &N, actual_freq)) return false;
-  if (R==0) return false;
-  
-  writeLock.lock();
-  m_uTx->_write_spi(0,SPI_ENABLE_TX_A,SPI_FMT_MSB | SPI_FMT_HDR_0,
-		    write_it((R & ~0x3) | 1));
-  m_uTx->_write_spi(0,SPI_ENABLE_TX_A,SPI_FMT_MSB | SPI_FMT_HDR_0,
-		    write_it((control & ~0x3) | 0));
-  usleep(10000);
-  m_uTx->_write_spi(0,SPI_ENABLE_TX_A,SPI_FMT_MSB | SPI_FMT_HDR_0,
-		    write_it((N & ~0x3) | 2));
-  writeLock.unlock();
-  
-  if (m_uTx->read_io(0) & PLL_LOCK_DETECT)  return true;
-  if (m_uTx->read_io(0) & PLL_LOCK_DETECT)  return true;
-  return false;
-}
-
-
 bool USRPDevice::rx_setFreq(double freq, double *actual_freq) 
 {
   unsigned R, control, N;
@@ -281,7 +258,7 @@ bool USRPDevice::start()
   writeLock.lock();
   // power up and configure daughterboards
   m_dbTx->set_enable(true);
-  m_uTx->set_mux(0x00000098);
+  m_uTx->set_mux(m_uTx->determine_tx_mux_value(txSubdevSpec));
   m_uRx->set_mux(0x00000032);
 
   if (!m_dbRx->select_rx_antenna(1))
@@ -619,14 +596,25 @@ bool USRPDevice::updateAlignment(TIMESTAMP timestamp)
 }
 
 #ifndef SWLOOPBACK 
-bool USRPDevice::setTxFreq(double wFreq) {
-  // Tune to wFreq+LO_OFFSET, to prevent LO bleedthrough from interfering with transmitted signal.
-  double actFreq;
-  if (!tx_setFreq(wFreq+LO_OFFSET,&actFreq)) return false;
-  bool retVal = m_uTx->set_tx_freq(0,(wFreq-actFreq));
-  LOG(INFO) << "set TX: " << wFreq-actFreq << " actual TX: " << m_uTx->tx_freq(0);
-  return retVal;
-};
+bool USRPDevice::setTxFreq(double wFreq)
+{
+  usrp_tune_result result;
+
+  if (m_uTx->tune(txSubdevSpec.side, m_dbTx, wFreq, &result)) {
+    LOG(INFO) << "set TX: " << wFreq << std::endl
+              << "    baseband freq: " << result.baseband_freq << std::endl
+              << "    DDC freq:      " << result.dxc_freq << std::endl
+              << "    residual freq: " << result.residual_freq;
+    return true;
+  }
+  else {
+    LOG(ERROR) << "set TX: " << wFreq << "failed" << std::endl
+               << "    baseband freq: " << result.baseband_freq << std::endl
+               << "    DDC freq:      " << result.dxc_freq << std::endl
+               << "    residual freq: " << result.residual_freq;
+    return false;
+  }
+}
 
 bool USRPDevice::setRxFreq(double wFreq) {
   // Tune to wFreq-2*LO_OFFSET, to
