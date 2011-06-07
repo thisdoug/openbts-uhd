@@ -280,39 +280,22 @@ bool USRPDevice::start()
 
   writeLock.lock();
   // power up and configure daughterboards
-  m_uTx->_write_oe(0,0,0xffff);
-  m_uTx->_write_oe(0,(POWER_UP|RX_TXN|ENABLE), 0xffff);
-  m_uTx->write_io(0,ENABLE,(POWER_UP|RX_TXN|ENABLE)); /* POWER_UP inverted */
-  m_uTx->_write_fpga_reg(FR_ATR_MASK_0 ,0);//RX_TXN|ENABLE);
-  m_uTx->_write_fpga_reg(FR_ATR_TXVAL_0,0);//,0 |ENABLE);
-  m_uTx->_write_fpga_reg(FR_ATR_RXVAL_0,0);//,RX_TXN|0);
-  m_uTx->_write_fpga_reg(40,0);
-  m_uTx->_write_fpga_reg(42,0);
-  m_uTx->set_pga(0,m_uTx->pga_max()); // should be 20dB
-  m_uTx->set_pga(1,m_uTx->pga_max());
+  m_dbTx->set_enable(true);
   m_uTx->set_mux(0x00000098);
-  LOG(INFO) << "TX pgas: " << m_uTx->pga(0) << ", " << m_uTx->pga(1);
+  m_uRx->set_mux(0x00000032);
+
+  if (!m_dbRx->select_rx_antenna(1))
+    m_dbRx->select_rx_antenna(0);
+
   writeLock.unlock();
 
-  if (!skipRx) {
-    writeLock.lock();
-    m_uRx->_write_fpga_reg(FR_ATR_MASK_0  + 3*3,0);
-    m_uRx->_write_fpga_reg(FR_ATR_TXVAL_0 + 3*3,0);
-    m_uRx->_write_fpga_reg(FR_ATR_RXVAL_0 + 3*3,0);
-    m_uRx->_write_fpga_reg(43,0);
-    m_uRx->_write_oe(1,(POWER_UP|RX_TXN|ENABLE), 0xffff);
-    m_uRx->write_io(1,(RX_TXN|ENABLE),(POWER_UP|RX_TXN|ENABLE)); /* POWER_UP inverted */
-    //m_uRx->write_io(1,0,RX2_RX1N); // using Tx/Rx/
-    m_uRx->write_io(1,RX2_RX1N,RX2_RX1N); // using Rx2
-    m_uRx->set_adc_buffer_bypass(2,true);
-    m_uRx->set_adc_buffer_bypass(3,true);
-    m_uRx->set_pga(2,m_uRx->pga_max()); // should be 20dB
-    m_uRx->set_pga(3,m_uRx->pga_max());
-    m_uRx->set_mux(0x00000032);
-    writeLock.unlock();
-    // FIXME -- This should be configurable.
-    setRxGain(47); //maxRxGain());
-  }
+  // Set all PGA gains to max
+  m_uTx->set_pga(0,m_uTx->pga_max());
+  m_uTx->set_pga(1,m_uTx->pga_max());
+  m_uRx->set_pga(2,m_uRx->pga_max());
+  m_uRx->set_pga(3,m_uRx->pga_max());
+
+  setRxGain(47);
 
   data = new short[currDataSize];
   dataStart = 0;
