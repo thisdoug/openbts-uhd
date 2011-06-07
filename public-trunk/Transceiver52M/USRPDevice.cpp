@@ -343,20 +343,10 @@ double USRPDevice::setRxGain(double dB) {
 
    dB = dB - minRxGain();
 
-   double rfMax = 70.0;
-   if (dB > rfMax) {
-        m_uRx->set_pga(2,dB-rfMax);
-        m_uRx->set_pga(3,dB-rfMax);
-        dB = rfMax;
-   }
-   else {
-        m_uRx->set_pga(2,0);
-        m_uRx->set_pga(3,0);
-   }
-   m_uRx->write_aux_dac(1,0,
-        (int) ceil((1.2 + 0.02 - (dB/rfMax))*4096.0/3.3));
+   LOG(NOTICE) << "Setting Rx gain to " << dB << " dB.";
 
-   LOG(DEBUG) << "Setting DAC voltage to " << (1.2+0.02 - (dB/rfMax)) << " " << (int) ceil((1.2 + 0.02 - (dB/rfMax))*4096.0/3.3);
+   if (!m_dbRx->set_gain(dB))
+     LOG(ERROR) << "Error setting Rx gain";
 
    rxGain = dBret;
    
